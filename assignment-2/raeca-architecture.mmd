@@ -1,0 +1,56 @@
+flowchart LR
+  %% Resilient Adaptive Edge-Cloud Framework (RAECA)
+  %% Layers
+  subgraph Device_Layer
+    S1["DHT22 Sensor"]
+    S2["Soil Moisture Sensor"]
+    A1["Actuator (Pump/Valve)"]
+  end
+
+  subgraph Micro_Edge
+    E1["ESP32 Microcontroller\n- Preprocess, threshold\n- TinyML (optional)\n- MQTT QoS 1/2\n- Local ring buffer"]
+  end
+
+  subgraph Edge_Gateway
+    G1["MQTT Broker (Mosquitto)"]
+    G2["Stream Processing (Node-RED)"]
+    G3["Local Inference (TFLite)"]
+    G4["Short-term Store (SQLite)"]
+    G5["Energy/Link Monitor"]
+    G6["Adaptive Scheduler"]
+  end
+
+  subgraph Cloud
+    C1["Federated Learning Aggregator"]
+    C2["Long-term Storage"]
+    C3["Dashboards/Analytics"]
+    C4["Model Registry & Policy Service"]
+  end
+
+  %% Data & Control Flows
+  S1 -- "Temp/Humidity" --> E1;
+  S2 -- "Analog" --> E1;
+  E1 -- "Actuation Cmd" --> A1;
+
+  E1 -- "MQTT (QoS1/2, LWT)" --> G1;
+  G1 -- "ACK/Retain" --> E1;
+  G1 --> G2;
+  G2 --> G3;
+  G3 --> G4;
+  G2 --> C3;
+  G1 -- "Backhaul (4G/Wi-Fi)" --> C2;
+
+  G6 -- "Placement/Policy" --> E1;
+  C4 -- "Model/Policy Updates" --> G6;
+  G6 -- "Signed Updates" --> E1;
+
+  %% Health/Trust Channels
+  E1 -. "Health/LWT" .-> G1;
+  E1 -. "mTLS, ACLs" .-> G1;
+
+  %% Notes
+  classDef note fill:#f7f7f7,stroke:#ccc,color:#333;
+  N1([Degradation Mode: lower sampling, compress, edge-only decisions]):::note
+  N2([Store-and-forward with replay and ordering]):::note
+  E1 --- N1;
+  G1 --- N2;

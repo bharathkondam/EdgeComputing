@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "author": "RAECA Example",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp32", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -160, "left": -20, "attrs": {} },
+    { "type": "wokwi-soil-moisture-sensor", "id": "soil1", "top": -40, "left": 200, "attrs": {} }
+  ],
+  "connections": [
+    [ "dht1:VCC", "esp32:3V3", "red" ],
+    [ "dht1:GND", "esp32:GND", "black" ],
+    [ "dht1:DATA", "esp32:15", "green" ],
+
+    [ "soil1:VCC", "esp32:3V3", "red" ],
+    [ "soil1:GND", "esp32:GND", "black" ],
+    [ "soil1:AO", "esp32:34", "blue" ]
+  ],
+  "dependencies": {}
+}
+

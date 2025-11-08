@@ -1,0 +1,71 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#ffffff',
+    'primaryTextColor': '#111111',
+    'primaryBorderColor': '#111111',
+    'lineColor': '#111111',
+    'actorBorder': '#111111',
+    'actorTextColor': '#111111',
+    'actorLineColor': '#111111',
+    'signalColor': '#111111',
+    'signalTextColor': '#111111',
+    'sequenceNumberColor': '#6B7280',
+    'noteBkgColor': '#FFFBE6',
+    'noteTextColor': '#374151'
+  }
+}}%%
+%% Resilient Adaptive Edge-Cloud Framework (RAECA)
+%% End-to-End Sequence Diagram
+
+sequenceDiagram
+  autonumber
+  participant S as Sensor/Actuator
+  participant M as ESP32 (Micro-Edge)
+  participant G as Edge Gateway (Broker/Node-RED/TFLite/SQLite)
+  participant R as Regional Edge
+  participant C as Cloud (FL/Registry/Storage)
+
+  Note over M,G: mTLS + ACLs, MQTT persistent session, retained LWT
+
+  M->>G: CONNECT + LWT(health=offline)
+  G-->>M: CONNACK
+  M->>G: PUBLISH health=online (retained)
+
+  loop Every sample interval
+    S->>M: Read DHT22/Soil
+    M->>G: PUBLISH telemetry (QoS1/2)
+    G->>G: Stream processing (filter, enrich)
+    G->>G: Local inference (TFLite)
+    alt Actuation needed
+      G-->>M: PUBLISH cmd irrigation on/off
+      M->>S: Toggle pump/valve (hysteresis)
+    else No actuation
+      G-->>M: PUBLISH cmd keep state
+    end
+  end
+
+  alt Backhaul available
+    G->>R: Upload batch/summaries
+    R->>C: Forward to cloud
+    par Federated learning
+      G->>C: Send local model delta
+      C->>G: Aggregated global model
+    and Policy rollout
+      C->>G: Signed model/policy bundle
+      G->>M: Staged rollout (canary, monitor, promote/rollback)
+    end
+  else Backhaul down
+    M-->>M: Store-and-forward (ring buffer)
+    G-->>G: Buffer to SQLite, retry later
+    Note over M,G: Priority scheduling: health/commands > telemetry > bulk
+  end
+
+  alt Energy constrained
+    G-->>G: Degrade sampling, duty-cycle radios
+    M-->>M: Lower sensor rate, compress payloads
+    Note over G: Scheduler reorders tasks by utility/energy/link
+  end
+
+  M -x G: Unexpected disconnect
+  G->>G: Broker triggers LWT => health=offline (retained)
